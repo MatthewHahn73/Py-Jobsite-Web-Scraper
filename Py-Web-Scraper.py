@@ -24,9 +24,6 @@ Required Software
         -Version >= 3.6
         -Installation: https://www.python.org/downloads/
     -Python Modules
-        -pyshorteners
-            -Purpose: URL Shortening
-            -Installation: https://pypi.org/project/pyshorteners/
 		-selenium
 			-Purpose: Web Scraping
 			-Installation: https://pypi.org/project/selenium/
@@ -56,15 +53,11 @@ import warnings
 import os
 import time
 import argparse
-import pyshorteners
 import itertools
 import json
 import webbrowser
 from bs4 import BeautifulSoup  
 from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 ERRORTEMPLATE = "A {0} exception occurred. Arguments:\n{1!r}"
 warnings.filterwarnings('ignore') 
@@ -109,10 +102,6 @@ class Scraper():
 			}
 		}
 
-	def ShortUrl(self, url):										  													#URL shortener for better readibility and character limitations 
-		shortener = pyshorteners.Shortener()
-		return shortener.tinyurl.short(url)
-
 	def ParseUrl(self, site=None):
 		SiteName = self.URLTemplates.get(self.Data.SITE if not site else site)
 		SiteNameFull = SiteName.get("Full")
@@ -122,27 +111,37 @@ class Scraper():
 		try:
 			DefaultBrowser = webbrowser.get()
 			DefaultBrowserName = DefaultBrowser.name
-			BrowserOptions = Options()
-			BrowserOptions.headless = True  	
 			if "firefox" in DefaultBrowserName:
+				BrowserOptions = webdriver.FirefoxOptions()
+				BrowserService = webdriver.FirefoxService(service_log_path=os.devnull)
+				BrowserOptions.headless = True  
 				return {
 					"Name" : "Firefox", 
-					"Driver" : webdriver.Firefox(service_log_path=os.path.devnull, options=BrowserOptions)
+					"Driver" : webdriver.Firefox(service=BrowserService, options=BrowserOptions)
 				}				
 			elif "chrome" in DefaultBrowserName:
+				BrowserOptions = webdriver.ChromeOptions()
+				BrowserService = webdriver.ChromeService(service_log_path=os.devnull)
+				BrowserOptions.headless = True  	
 				return {
 					"Name" : "Chrome", 
-					"Driver" : webdriver.Chrome(service_log_path=os.path.devnull, options=BrowserOptions)
+					"Driver" : webdriver.Chrome(service=BrowserService, options=BrowserOptions)
 				}				
 			elif "edge" in DefaultBrowserName:
+				BrowserOptions = webdriver.EdgeOptions()
+				BrowserService = webdriver.EdgeService(service_log_path=os.devnull)
+				BrowserOptions.headless = True  	
 				return {
 					"Name" : "Edge", 
-					"Driver" : webdriver.Edge(service_log_path=os.path.devnull, options=BrowserOptions)
+					"Driver" : webdriver.Edge(service=BrowserService, options=BrowserOptions)
 				}
 			elif "safari" in DefaultBrowserName:
+				BrowserOptions = webdriver.SafariOptions()
+				BrowserService = webdriver.SafariService(service_log_path=os.devnull)
+				BrowserOptions.headless = True  	
 				return {
 					"Name" : "Safari", 
-					"Driver" : webdriver.Safari(service_log_path=os.path.devnull, options=BrowserOptions)
+					"Driver" : webdriver.Safari(service=BrowserService, options=BrowserOptions)
 				}
 			else:
 				return {
@@ -162,7 +161,7 @@ class Scraper():
 				logging.info("Default browser found as '" + Browser["Name"] + "'")
 				logging.info("Waiting for response from '" + URL + "' ...")
 				Browser["Driver"].get(URL)	
-				WebDriverWait(Browser["Driver"], 100).until(EC.url_contains(self.URLTemplates.get(Site).get("Partial")))	#Wait for page to load
+				webdriver.support.ui.WebDriverWait(Browser["Driver"], 100).until(webdriver.support.expected_conditions.url_contains(self.URLTemplates.get(Site).get("Partial")))	#Wait for page to load
 				Html = Browser["Driver"].page_source
 				Browser["Driver"].close()
 				return Html
@@ -283,8 +282,8 @@ class Scraper():
 		if self.Data.SITE:								
 			logging.info("Beginning scraping pass for " + "'" + str(self.Data.SITE) + "' ...")
 			RawHtml = (self.ScrapData(self.ParseUrl(), self.Data.SITE))
-			logging.info("Beginning html parsing ...")
 			if RawHtml:
+				logging.info("Beginning html parsing ...")
 				if self.Data.SITE == "Indeed":
 					ParsedHtml.append(self.ParseIndeedData(RawHtml))
 				elif self.Data.SITE == "LinkedIn":
@@ -349,7 +348,7 @@ class Scraper():
 						for x in FinalData:
 							txtFile.write("Website: " + x["Site"].strip() + "\n" + 
 										"Title: " + x["Title"].strip() + "\n" + 
-										"Link: " + self.ShortUrl(x["Link"]).strip() + "\n" + 
+										"Link: " + x["Link"].strip() + "\n" + 
 										"Company: " + x["Company"].strip() + "\n" + 
 										"Location: " + x["Location"].strip() + "\n" + 
 										"Date Published: " + x["Date"].strip() + "\n\n")
@@ -374,7 +373,7 @@ class Scraper():
 								"Canidate #" + str(count) : {	
 									"Website" : x["Site"].strip(),
 									"Title" : x["Title"].strip(), 
-									"Link" : self.ShortUrl(x["Link"]).strip(),
+									"Link" : x["Link"].strip(),
 									"Company" : x["Company"].strip(),
 									"Location" : x["Location"].strip(), 
 									"Date Published" : x["Date"].strip()
@@ -387,7 +386,7 @@ class Scraper():
 					logging.error(ERRORTEMPLATE.format(type(IO).__name__, IO.args)) 
 				except Exception as E:
 					logging.error(ERRORTEMPLATE.format(type(E).__name__, E.args)) 
-		logging.info("Script run successfully (" + str(round(time.time() - Start, 2)) + " sec(s)" + ")")
+		logging.info("Script run complete (" + str(round(time.time() - Start, 2)) + " sec(s)" + ")")
 
 if __name__ == "__main__": 	
 	par = argparse.ArgumentParser(description="Indeed Web Scraper v0.75")
